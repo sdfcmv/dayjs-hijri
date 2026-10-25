@@ -1,0 +1,108 @@
+name: Publish to npm
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    name: Require a tagged PR merge into master
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout tag and branch history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require the tagged commit to be on master
+        id: commit
+        run: |
+          git merge-base --is-ancestor HEAD refs/remotes/origin/master
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Require the tag to point to a merged PR result
+        uses: actions/github-script@v9
+        env:
+          RELEASE_SHA: ${{ steps.commit.outputs.sha }}
+        with:
+          script: |
+            const pulls = await github.paginate(
+              github.rest.repos.listPullRequestsAssociatedWithCommit,
+              { ...context.repo, commit_sha: process.env.RELEASE_SHA, per_page: 100 },
+            );
+            const repository = `${context.repo.owner}/${context.repo.repo}`;
+            const merged = pulls.find((pull) =>
+              pull.merged_at &&
+              pull.base.ref === 'master' &&
+              pull.base.repo.full_name === repository &&
+              pull.merge_commit_sha === process.env.RELEASE_SHA
+            );
+            if (!merged) {
+              core.setFailed('The version tag must point to the result of a PR merged into master.');
+            } else {
+              core.info(`Release authorized by merged PR #${merged.number}.`);
+            }
+
+  check:
+    needs: authorize
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org/'
+          package-manager-cache: false
+
+      - name: Validate release metadata
+        id: release
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { appendFileSync, readFileSync } from 'node:fs';
+
+          const manifest = JSON.parse(readFileSync('package.json', 'utf8'));
+          const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
+          assert.equal(process.env.GITHUB_REF_TYPE, 'tag', 'Publishing requires a version tag.');
+          assert.equal(process.env.GITHUB_REF_NAME, `v${manifest.version}`, 'The tag must match package.json.');
+          assert.equal(manifest.repository.url, `git+https://github.com/${process.env.GITHUB_REPOSITORY}.git`, 'The package repository must match the publishing repository.');
+          assert.equal(lock.name, manifest.name, 'The lockfile package name is out of sync.');
+          assert.equal(lock.version, manifest.version, 'The lockfile version is out of sync.');
+          assert.equal(lock.packages[''].name, manifest.name, 'The lockfile root package name is out of sync.');
+          assert.equal(lock.packages[''].version, manifest.version, 'The lockfile root version is out of sync.');
+          const tag = manifest.version.includes('-') ? 'next' : 'latest';
+          appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\n`);
+          console.log(`Publishing ${manifest.name}@${manifest.version} with npm tag ${tag}.`);
+          NODE
+
+      - name: Install dependencies
+        run: npm ci
+
+      # prepublishOnly runs the full checks, build, and packed-package tests.
+      - name: Publish with npm trusted publishing
+        run: npm publish --tag "$NPM_DIST_TAG"
+        env:
+          NPM_DIST_TAG: ${{ steps.release.outputs.tag }}
