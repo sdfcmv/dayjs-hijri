@@ -1,0 +1,40 @@
+name: CI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }} / ${{ matrix.timezone }} / Day.js ${{ matrix.dayjs }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { node: 22, timezone: UTC, dayjs: '1.11.13' }
+          - { node: 22, timezone: UTC, dayjs: latest }
+          - { node: 24, timezone: UTC, dayjs: latest }
+          - { node: 22, timezone: Indian/Maldives, dayjs: latest }
+          - { node: 22, timezone: America/New_York, dayjs: latest }
+    env:
+      TZ: ${{ matrix.timezone }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Select Day.js version
+        run: npm install --no-save --ignore-scripts dayjs@${{ matrix.dayjs }}
+
+      - name: Check source and published package
+        run: npm run check

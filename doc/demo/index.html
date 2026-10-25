@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Day.js Hijri demo</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "dayjs": "https://cdn.jsdelivr.net/npm/dayjs@1.11.23/+esm"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <h1>Umm al-Qura Hijri date</h1>
+    <p>
+      Run <code>npm run build</code>, then serve the repository over HTTP to use
+      this demo.
+    </p>
+    <p>Gregorian: <output id="gregorian"></output></p>
+    <p>Hijri: <output id="hijri"></output></p>
+    <script type="module">
+      import dayjs from 'dayjs';
+      import hijri from '../../dist/index.js';
+      dayjs.extend(hijri);
+      const now = dayjs();
+      document.querySelector('#gregorian').textContent =
+        now.format('YYYY-MM-DD');
+      document.querySelector('#hijri').textContent = now
+        .calendar('hijri')
+        .format('DD MMMM YYYY');
+    </script>
+  </body>
+</html>
