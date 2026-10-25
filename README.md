@@ -189,7 +189,7 @@ npm install /path/to/smedigital-dayjs-hijri-2.0.0.tgz 'dayjs@^1.11.13'
 
 ## Publishing
 
-Merge a release PR into `master`, then push a `v<version>` tag on the resulting merge commit, matching `package.json`. Squash and rebase merges are supported. The workflow verifies the merged PR and runs the CI matrix before publishing to npm with trusted publishing. Stable versions use `latest`; prereleases use `next`.
+Merge a release PR into `master`, then push a `v<version>` tag on the resulting merge commit, matching `package.json`. Squash and rebase merges are supported. The workflow verifies the merged PR, runs CI, and stages the release on npm. A maintainer reviews and approves it with 2FA before publication. Stable versions use `latest`; prereleases use `next`.
 
 See [RELEASING.md](RELEASING.md) for the one-time npm setup and release commands.
 

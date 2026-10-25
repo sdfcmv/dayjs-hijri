@@ -1,4 +1,4 @@
-name: Publish to npm
+name: Stage npm release
 
 on:
   push:
@@ -58,7 +58,7 @@ jobs:
     needs: authorize
     uses: ./.github/workflows/ci.yml
 
-  publish:
+  stage:
     needs: check
     runs-on: ubuntu-latest
     permissions:
@@ -76,6 +76,9 @@ jobs:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org/'
           package-manager-cache: false
+
+      - name: Install staging-capable npm CLI
+        run: npm install --global npm@11.21.1 --ignore-scripts
 
       - name: Validate release metadata
         id: release
@@ -95,14 +98,27 @@ jobs:
           assert.equal(lock.packages[''].version, manifest.version, 'The lockfile root version is out of sync.');
           const tag = manifest.version.includes('-') ? 'next' : 'latest';
           appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\n`);
-          console.log(`Publishing ${manifest.name}@${manifest.version} with npm tag ${tag}.`);
+          console.log(`Staging ${manifest.name}@${manifest.version} with npm tag ${tag}.`);
           NODE
 
       - name: Install dependencies
         run: npm ci
 
-      # prepublishOnly runs the full checks, build, and packed-package tests.
-      - name: Publish with npm trusted publishing
-        run: npm publish --tag "$NPM_DIST_TAG"
+      - name: Check and build the release
+        run: npm run check
+
+      # Stage the checked build; approval happens on npm with maintainer 2FA.
+      - name: Stage with npm trusted publishing
+        run: npm stage publish --ignore-scripts --tag "$NPM_DIST_TAG"
         env:
           NPM_DIST_TAG: ${{ steps.release.outputs.tag }}
+
+      - name: Explain the approval step
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'SUMMARY'
+          ## Release staged for review
+
+          Open npm's **Staged Packages** tab for `@smedigital/dayjs-hijri`.
+          Review the version and tarball, then approve with maintainer 2FA.
+          This workflow does not approve or publish staged releases.
+          SUMMARY
