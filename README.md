@@ -187,6 +187,12 @@ Install the generated tarball in that project, alongside Day.js:
 npm install /path/to/smedigital-dayjs-hijri-2.0.0.tgz 'dayjs@^1.11.13'
 ```
 
+## Publishing
+
+Merge a release PR into `master`, then push a `v<version>` tag on the resulting merge commit, matching `package.json`. Squash and rebase merges are supported. The workflow verifies the merged PR and runs the CI matrix before publishing to npm with trusted publishing. Stable versions use `latest`; prereleases use `next`.
+
+See [RELEASING.md](RELEASING.md) for the one-time npm setup and release commands.
+
 ## License
 
 MIT. Copyright (c) 2026 SME Digital. See [LICENSE](LICENSE) for the full license and retained upstream copyright notices. Calendar data attribution and its MIT license are included in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Both notice files ship in the npm package, and both JavaScript builds include the notices in a license comment.

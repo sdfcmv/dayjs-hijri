@@ -61,7 +61,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/mashhadiebad/dayjs-hijri"
+    "url": "git+https://github.com/sdfcmv/dayjs-hijri.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "author": "MohammadHossein MashhadiEbad",
   "license": "MIT",
